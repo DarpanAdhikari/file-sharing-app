@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Room{% endblock %}
+{% block content %}
+<div class="dashboard">
+    <div class="panel">
+        <h2 class="panel__title" id="room-name">Room</h2>
+        <div id="conn-status" class="muted"><span class="status-dot"></span>Connecting…</div>
+        <div class="section" style="margin-top:16px;">
+            <p class="panel__title" style="font-size:.9rem;">Room Code</p>
+            <div class="room-code" id="room-code">…</div>
+        </div>
+        <div class="section" style="margin-top:16px;">
+            <p class="panel__title" style="font-size:.9rem;">Scan to join</p>
+            <div class="qr-wrap" id="qr"><img src="{{ qr }}" alt="Join QR code"></div>
+            <p class="muted" style="font-size:.85rem;text-align:center;">Password is never included in the QR.</p>
+        </div>
+        <div class="section" style="margin-top:16px;">
+            <p class="panel__title" style="font-size:.9rem;">Connected Devices</p>
+            <ul class="peer-list" id="peer-list"></ul>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2 class="panel__title">Share Files</h2>
+        <div id="role-hint" class="muted" style="margin-bottom:16px;"></div>
+        <div id="send-zone">
+            <div class="dropzone" id="dropzone">
+                Drop files here <br>or
+            </div>
+            <label class="btn btn--primary btn--block" style="margin-top:12px;cursor:pointer;">
+                Select Files
+                <input type="file" id="file-input" multiple hidden>
+            </label>
+        </div>
+
+        <div class="section" style="margin-top:24px;">
+            <h3 class="panel__title" style="font-size:.9rem;">Queued Files</h3>
+            <div id="queue-list"></div>
+            <button class="btn btn--primary btn--block" id="send-btn" disabled>Send Files</button>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section__title">Transfers</h2>
+    <div id="transfers"><div class="empty-state">No transfers yet.</div></div>
+</div>
+
+<div class="section">
+    <div class="tabs" role="tablist">
+        <button class="tab tab--active" role="tab" data-tab="files">Files</button>
+        <button class="tab" role="tab" data-tab="chat">Chat</button>
+    </div>
+</div>
+
+<div id="tab-files" class="tab-panel tab-panel--active"></div>
+
+<div id="tab-chat" class="tab-panel">
+    <div class="panel">
+        <div class="chat-log" id="chat-log">
+            <div class="chat-empty muted">Chat messages appear here once a peer is connected.</div>
+        </div>
+        <form id="chat-form" class="chat-input">
+            <input type="text" id="chat-text" placeholder="Type a message…" maxlength="4000" autocomplete="off" disabled>
+            <button type="submit" class="btn btn--primary" id="chat-send" disabled>Send</button>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/webrtc.js') }}"></script>
+<script>
+    window.ROOM_ID = {{ room_id | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/room.js') }}"></script>
+{% endblock %}

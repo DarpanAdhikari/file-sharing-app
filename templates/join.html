@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Join Room{% endblock %}
+{% block content %}
+<section class="section" style="max-width:460px;margin:48px auto;">
+    <div class="card">
+        <h1 class="section__title">Join Room</h1>
+        <p class="muted" id="room-info">Loading room…</p>
+
+        <div style="margin-bottom:16px;">
+            <button type="button" class="btn btn--primary btn--block" id="scan-btn">📷 Scan QR to join</button>
+        </div>
+
+        <div id="scanner" class="hidden" style="margin-bottom:16px;">
+            <video id="scan-video" playsinline muted style="width:100%;border-radius:8px;background:#000;"></video>
+            <p class="muted" id="scan-status" style="font-size:.85rem;margin-top:8px;">Point your camera at the room's QR code.</p>
+            <button type="button" class="btn btn--ghost" id="scan-stop">Stop scanning</button>
+        </div>
+
+        <div class="divider"><span>or enter the room code</span></div>
+
+        <form id="join-form" class="form">
+            <label class="form__field">
+                <span>Room code / ID</span>
+                <input type="text" name="roomId" id="room-id-input" placeholder="Paste room link or code" required autocomplete="off">
+            </label>
+            <label class="form__field">
+                <span>Room password</span>
+                <input type="password" name="password" placeholder="Enter room password" required autocomplete="off">
+            </label>
+            <label class="form__field">
+                <span>Your display name</span>
+                <input type="text" name="displayName" placeholder="Guest" maxlength="40" required>
+            </label>
+            <div class="form__actions">
+                <button type="button" class="btn" id="back-btn">Back</button>
+                <button type="submit" class="btn btn--primary" id="join-btn">Join Room</button>
+            </div>
+        </form>
+        <div id="join-error" class="error-text hidden"></div>
+    </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vendor/jsqr.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+<script>window.INITIAL_ROOM_ID = {{ room_id | tojson }};</script>
+<script src="{{ url_for('static', filename='js/join.js') }}"></script>
+{% endblock %}

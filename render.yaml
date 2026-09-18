@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: p2p-file-share
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
+    autoDeploy: true
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: STUN_SERVER
+        value: stun:stun.l.google.com:19302
+      - key: ROOM_TIMEOUT_MINUTES
+        value: 30
+      - key: MAX_PEERS_PER_ROOM
+        value: 5

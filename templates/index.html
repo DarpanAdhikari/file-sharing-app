@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}P2P File Share — Rooms{% endblock %}
+{% block content %}
+<section class="hero">
+    <h1 class="hero__title">Share files directly between your devices</h1>
+    <p class="hero__subtitle">No uploads. Files travel peer-to-peer over WebRTC. The server only helps you find and connect.</p>
+    <button class="btn btn--primary btn--lg" id="create-room-btn">+ Create Room</button>
+</section>
+
+<section class="section">
+    <h2 class="section__title">Available Rooms</h2>
+    <div id="room-list" class="room-grid" aria-busy="true">
+        <div class="empty-state">Loading rooms…</div>
+    </div>
+</section>
+
+<!-- Create Room Modal -->
+<div class="modal-backdrop hidden" id="create-modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="create-title">
+        <h2 id="create-title">Create Room</h2>
+        <form id="create-form" class="form">
+            <label class="form__field">
+                <span>Room Name</span>
+                <input type="text" name="name" maxlength="60" placeholder="My Laptop" required>
+            </label>
+            <label class="form__field">
+                <span>Password</span>
+                <input type="password" name="password" maxlength="200" placeholder="••••••••••" required>
+            </label>
+            <label class="form__field">
+                <span>Display Name</span>
+                <input type="text" name="displayName" maxlength="40" placeholder="Darpan" required>
+            </label>
+            <fieldset class="form__field">
+                <legend>Room Type</legend>
+                <div class="radio-row">
+                    <label><input type="radio" name="type" value="send"> Send Files</label>
+                    <label><input type="radio" name="type" value="receive"> Receive Files</label>
+                    <label><input type="radio" name="type" value="both" checked> Send &amp; Receive</label>
+                </div>
+            </fieldset>
+            <div class="form__actions">
+                <button type="button" class="btn" data-close>Cancel</button>
+                <button type="submit" class="btn btn--primary">Create Room</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/vendor/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
