@@ -1,7 +1,3 @@
-import eventlet
-
-eventlet.monkey_patch()
-
 from flask import Flask
 from flask_socketio import SocketIO
 
@@ -9,7 +5,7 @@ import config
 from routes.pages import pages_bp
 from routes.rooms import rooms_bp
 
-socketio = SocketIO(async_mode="eventlet")
+socketio = SocketIO(async_mode="threading")
 
 
 def create_app():

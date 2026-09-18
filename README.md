@@ -100,8 +100,8 @@ cp .env.example .env   # then edit as needed
 ```bash
 source .venv/bin/activate
 python app.py
-# or via gunicorn/eventlet (production):
-gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:8000 app:app
+# or via gunicorn (production):
+gunicorn --worker-class gthread --threads 20 -b 0.0.0.0:8000 app:app
 ```
 
 Then open `http://localhost:8000`.
@@ -134,7 +134,7 @@ For best results use Chrome/Edge/Firefox/Safari on both sides.
 4. Set the **Build command**:
    `pip install -r requirements.txt`
 5. Set the **Start command**:
-   `gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app`
+   `gunicorn --worker-class gthread --threads 20 -b 0.0.0.0:$PORT app:app`
 6. In the environment variables, add the values from section 6 (at minimum
    `SECRET_KEY`).
 7. Render provisions an HTTPS URL automatically (e.g. `https://<name>.onrender.com`)
