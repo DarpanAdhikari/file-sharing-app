@@ -103,7 +103,7 @@ def test_join_page_serves(client):
     assert res.status_code == 200
 
 
-def test_room_page_serves(client):
+def test_room_page_redirects_dead_room_to_join(client):
     res = client.get("/room/abc123")
-    assert res.status_code == 200
-    assert b"Join QR code" in res.data or b"qr" in res.data
+    assert res.status_code == 302
+    assert res.headers["Location"].endswith("/join/abc123")

@@ -55,7 +55,7 @@
     // ---- copy invite link ----
     if (copyBtn) {
         copyBtn.addEventListener("click", async () => {
-            const url = window.location.href;
+            const url = window.location.origin + "/join/" + ROOM_ID;
             try {
                 await navigator.clipboard.writeText(url);
                 P2P.toast.success("Invite link copied!");

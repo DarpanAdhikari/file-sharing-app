@@ -16,9 +16,9 @@
     function extractRoomId(value) {
         const v = (value || "").trim();
         if (!v) return "";
-        // full URL: https://host/join/ROOMID
-        const m = v.match(/\/join\/([a-f0-9]+)/i);
-        if (m) return m[1];
+        // full URL: https://host/join/ROOMID or https://host/room/ROOMID
+        const m = v.match(/(?:^|\/)(join|room)\/([a-f0-9]+)/i);
+        if (m) return m[2];
         return v.split("?")[0];
     }
 

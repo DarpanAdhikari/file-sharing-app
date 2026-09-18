@@ -102,7 +102,7 @@ cp .env.example .env   # then edit as needed
 source .venv/bin/activate
 python app.py
 # or via gunicorn (production):
-gunicorn --worker-class gthread --threads 20 -b 0.0.0.0:8000 app:app
+gunicorn --workers 1 --worker-class gthread --threads 20 -b 0.0.0.0:8000 app:app
 ```
 
 Then open `http://localhost:8000`.
@@ -135,7 +135,7 @@ For best results use Chrome/Edge/Firefox/Safari on both sides.
 4. Set the **Build command**:
    `pip install -r requirements.txt`
 5. Set the **Start command**:
-   `gunicorn --worker-class gthread --threads 20 -b 0.0.0.0:$PORT app:app`
+   `gunicorn --workers 1 --worker-class gthread --threads 20 -b 0.0.0.0:$PORT app:app`
 6. In the environment variables, add the values from section 6 (at minimum
    `SECRET_KEY`).
 7. Render provisions an HTTPS URL automatically (e.g. `https://<name>.onrender.com`)
@@ -155,6 +155,11 @@ For best results use Chrome/Edge/Firefox/Safari on both sides.
 > this automatically, and an active file transfer continues over the direct
 > WebRTC DataChannel even if signaling drops. Still, sessions longer than
 > ~5 minutes may briefly flicker "Reconnecting…" before re-authenticating.
+>
+> **Single-worker requirement:** rooms live in process memory, so the app must
+> run with exactly **one gunicorn worker** (`--workers 1`). The included start
+> command pins this; do not raise it (or set `WEB_CONCURRENCY`) or rooms will be
+> split across processes and invite links will report rooms as "not active".
 
 ## 10. STUN/TURN configuration
 

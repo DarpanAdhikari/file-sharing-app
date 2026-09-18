@@ -2,7 +2,7 @@ import base64
 import io
 
 import qrcode
-from flask import Blueprint, render_template, url_for
+from flask import Blueprint, redirect, render_template, url_for
 
 import config
 from services.room_service import room_service
@@ -41,6 +41,9 @@ def join(room_id):
 
 @pages_bp.get("/room/<room_id>")
 def room(room_id):
+    room = room_service.get(room_id)
+    if room is None or room.expired:
+        return redirect(url_for("pages.join", room_id=room_id))
     return render_template(
         "room.html",
         room_id=room_id,
