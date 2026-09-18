@@ -7,6 +7,7 @@
     const ROOM_ID = window.ROOM_ID;
     const displayName = sessionStorage.getItem("p2p_displayName") || "Guest";
     const password = sessionStorage.getItem("p2p_roomPassword") || "";
+    const isCreator = sessionStorage.getItem("p2p_isCreator") === "1";
 
     const roomNameEl = document.getElementById("room-name");
     const roomCodeEl = document.getElementById("room-code");
@@ -228,6 +229,7 @@
             roomId: ROOM_ID,
             password,
             displayName,
+            isCreator,
         });
     });
 

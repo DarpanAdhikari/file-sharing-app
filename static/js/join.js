@@ -121,6 +121,7 @@
             if (!res.ok) throw new Error(body.error || "Failed to join.");
             sessionStorage.setItem("p2p_displayName", data.displayName);
             sessionStorage.setItem("p2p_roomPassword", data.password);
+            sessionStorage.removeItem("p2p_isCreator");
             window.location.href = "/room/" + roomId;
         } catch (err) {
             showError(err.message);

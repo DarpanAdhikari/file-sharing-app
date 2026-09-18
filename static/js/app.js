@@ -35,6 +35,9 @@
             const room = body.room;
             closeModal();
             form.reset();
+            sessionStorage.setItem("p2p_displayName", data.displayName);
+            sessionStorage.setItem("p2p_roomPassword", data.password);
+            sessionStorage.setItem("p2p_isCreator", "1");
             P2P.toast.success("Room created!");
             window.location.href = "/room/" + room.id;
         } catch (err) {

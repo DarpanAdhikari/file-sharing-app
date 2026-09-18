@@ -59,6 +59,7 @@ def _handle_authenticate(data):
     room_id = data.get("roomId")
     password = data.get("password") or ""
     display_name = (data.get("displayName") or "Guest").strip()[:40]
+    is_creator = bool(data.get("isCreator"))
     try:
         room = room_service.authenticate(room_id, password)
     except RoomNotFoundError:
@@ -72,7 +73,7 @@ def _handle_authenticate(data):
         return
 
     try:
-        room_service.add_peer(room, request.sid, display_name)
+        room_service.add_peer(room, request.sid, display_name, is_creator)
     except RoomFullError:
         emit("error", {"error": "Room is full."})
         return
