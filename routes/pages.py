@@ -4,6 +4,7 @@ import io
 import qrcode
 from flask import Blueprint, render_template, url_for
 
+import config
 from services.room_service import room_service
 
 pages_bp = Blueprint("pages", __name__)
@@ -40,4 +41,9 @@ def join(room_id):
 
 @pages_bp.get("/room/<room_id>")
 def room(room_id):
-    return render_template("room.html", room_id=room_id, qr=_room_qr_data_uri(room_id))
+    return render_template(
+        "room.html",
+        room_id=room_id,
+        qr=_room_qr_data_uri(room_id),
+        max_file_size=config.MAX_FILE_SIZE,
+    )

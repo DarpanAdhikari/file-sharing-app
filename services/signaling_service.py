@@ -85,27 +85,45 @@ def _handle_authenticate(data):
             "room": room.public_metadata(),
             "iceConfig": _ice_config(),
             "yourSid": request.sid,
+            "peers": [
+                {"sid": sid, "name": peer.display_name, "isCreator": peer.is_creator}
+                for sid, peer in room.peers.items()
+            ],
         },
     )
-    _emit_to_room(room.id, "peer_joined", {"peer": request.sid}, skip_sid=request.sid)
+    _emit_to_room(
+        room.id,
+        "peer_joined",
+        {"peer": request.sid, "peerName": display_name},
+        skip_sid=request.sid,
+    )
     _emit_to_room(room.id, "room_updated", {"room": room.public_metadata()})
 
 
 def _handle_signal(data):
     room_id = data.get("roomId")
-    target = data.get("target")
-    signal_type = data.get("type")
-
     room = room_service.get(room_id)
-    if room is None or target is None:
-        return
-    if target not in room.peers:
-        return
-    if request.sid not in room.peers:
+    if room is None or request.sid not in room.peers:
         return
 
-    payload = {"from": request.sid, "signal": data.get("signal")}
-    emit(signal_type, payload, to=target)
+    sender_sid = request.sid
+    payload = {"from": sender_sid, "signal": data.get("signal")}
+
+    # If a target sid was supplied and is a valid peer, deliver to only that
+    # peer. Otherwise (e.g. offers/answers sent without a target) deliver to
+    # every other peer in the room.
+    target = data.get("target")
+    if target and target in room.peers and target != sender_sid:
+        targets = [target]
+    else:
+        targets = [sid for sid in room.peers if sid != sender_sid]
+    if not targets:
+        return
+
+    # Always emit the standardized "signal" event name; the payload's
+    # signal.sdp.type / signal.candidate tells the receiver what kind it is.
+    for sid in targets:
+        emit("signal", payload, to=sid)
 
 
 def _handle_heartbeat(data):

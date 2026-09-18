@@ -13,6 +13,9 @@
     const roomCodeEl = document.getElementById("room-code");
     const connEl = document.getElementById("conn-status");
     const peerListEl = document.getElementById("peer-list");
+    const retryBtn = document.getElementById("retry-btn");
+    const connHelp = document.getElementById("conn-help");
+    const copyBtn = document.getElementById("copy-invite-btn");
     const roleHint = document.getElementById("role-hint");
     const queueListEl = document.getElementById("queue-list");
     const sendBtn = document.getElementById("send-btn");
@@ -27,13 +30,17 @@
     const chatSend = document.getElementById("chat-send");
     const chatEmpty = chatLogEl.querySelector(".chat-empty");
 
-    let socket = io();
+    let socket = io({ transports: ["websocket"] });
     let self = null;          // P2P.Peer
     let roomType = "both";
     let role = "sender";      // who this client plays
     let queue = [];           // File objects
     let receiver = new P2P.FileReceiver();
     let peerName = "Peer";    // name of the connected peer
+    let restartAttempts = 0;
+    const senders = {};       // transfer id -> FileSender
+    const startedAt = {};     // transfer id -> timestamp
+    let peerConnected = false;
 
     // ---- connection status ----
     function setStatus(text, cls) {
@@ -43,6 +50,34 @@
 
     function roomCode() {
         return ROOM_ID.slice(0, 6).toUpperCase();
+    }
+
+    // ---- copy invite link ----
+    if (copyBtn) {
+        copyBtn.addEventListener("click", async () => {
+            const url = window.location.href;
+            try {
+                await navigator.clipboard.writeText(url);
+                P2P.toast.success("Invite link copied!");
+            } catch (e) {
+                P2P.toast.error("Could not copy link.");
+            }
+        });
+    }
+
+    // ---- retry connection ----
+    if (retryBtn) {
+        retryBtn.addEventListener("click", () => {
+            if (!self) return;
+            setStatus("Retrying connection…", "warn");
+            restartAttempts = 0;
+            self.restartIce();
+        });
+    }
+
+    function showRetry() {
+        if (retryBtn) retryBtn.classList.remove("hidden");
+        if (connHelp) connHelp.style.display = "block";
     }
 
     // ---- transfer UI helpers ----
@@ -73,6 +108,14 @@
         if (text) meta.textContent = text;
         const cancelBtn = box.querySelector(".cancel-btn");
         if (pct >= 100 && cancelBtn) cancelBtn.remove();
+    }
+
+    function transferSpeed(id, bytesDone) {
+        const start = startedAt[id];
+        if (!start) return "";
+        const secs = (Date.now() - start) / 1000;
+        if (secs < 0.5 || bytesDone <= 0) return "";
+        return P2P.formatBytes(bytesDone / secs) + "/s";
     }
 
     function finalizeTransfer(id, blob, name) {
@@ -114,8 +157,19 @@
         renderQueue();
     });
 
+    const MAX_FILE_SIZE = window.MAX_FILE_SIZE || 200 * 1024 * 1024;
+
     function addFiles(files) {
-        for (const f of files) queue.push(f);
+        for (const f of files) {
+            if (f.size > MAX_FILE_SIZE) {
+                P2P.toast.error(`"${f.name}" exceeds the 200 MB limit.`);
+                continue;
+            }
+            if (f.size > 100 * 1024 * 1024) {
+                P2P.toast.show(`Large file: "${f.name}" — transfer may be slow on cellular.`);
+            }
+            queue.push(f);
+        }
         renderQueue();
     }
 
@@ -147,15 +201,22 @@
         renderQueue();
         for (const f of files) {
             const id = "snd-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+            startedAt[id] = Date.now();
             const item = addTransferItem(id, f.name, f.size, "Sending");
             const sender = new P2P.FileSender(self, f, {
                 onProgress: (off, size) => {
-                    updateTransfer(id, (off / size) * 100, `Sending · ${P2P.formatBytes(off)} / ${P2P.formatBytes(size)}`);
+                    const speed = transferSpeed(id, off);
+                    updateTransfer(
+                        id,
+                        (off / size) * 100,
+                        `Sending · ${P2P.formatBytes(off)} / ${P2P.formatBytes(size)}` + (speed ? ` · ${speed}` : "")
+                    );
                 },
                 onDone: () => updateTransfer(id, 100, "Sent"),
                 onCancel: () => updateTransfer(id, 0, "Cancelled"),
                 onError: (err) => { P2P.toast.error("Send failed"); console.error(err); },
             });
+            senders[id] = sender;
             sender.start();
         }
     });
@@ -164,8 +225,13 @@
         const btn = e.target.closest(".cancel-btn");
         if (btn) {
             const id = btn.dataset.id;
-            const item = document.getElementById(id);
-            if (item) updateTransfer(id, 0, "Cancelled");
+            const s = senders[id];
+            if (s) {
+                s.cancel();
+                updateTransfer(id, 0, "Cancelled");
+            } else {
+                updateTransfer(id, 0, "Cancelled");
+            }
         }
     });
 
@@ -173,13 +239,24 @@
     P2P.onReceiveMeta = function (f) {
         const id = "rcv-" + Date.now();
         f._id = id;
+        startedAt[id] = Date.now();
         addTransferItem(id, f.name, f.size, "Receiving");
     };
     P2P.onReceiveProgress = function (f) {
-        updateTransfer(f._id, (f.received / f.size) * 100, `Receiving · ${P2P.formatBytes(f.received)} / ${P2P.formatBytes(f.size)}`);
+        const id = f._id;
+        const speed = transferSpeed(id, f.received);
+        updateTransfer(
+            id,
+            (f.received / f.size) * 100,
+            `Receiving · ${P2P.formatBytes(f.received)} / ${P2P.formatBytes(f.size)}` + (speed ? ` · ${speed}` : "")
+        );
     };
     P2P.onReceiveDone = function (f, blob) {
         finalizeTransfer(f._id, blob, f.name);
+    };
+    P2P.onReceiveCancel = function (f) {
+        if (f._id) updateTransfer(f._id, 0, "Cancelled");
+        else P2P.toast.info && P2P.toast.info("Transfer cancelled by sender.");
     };
 
     // ---- tabs ----
@@ -223,6 +300,58 @@
     });
 
     // ---- SocketIO ----
+    function teardownPeer() {
+        if (self) {
+            try { self.close(); } catch (e) {}
+        }
+        self = null;
+        peerConnected = false;
+    }
+
+    function makePeer(data) {
+        teardownPeer();
+        self = new P2P.Peer(ROOM_ID, data.yourSid, data.iceConfig, {
+            onSignal: (type, signal) =>
+                socket.emit("signal", { roomId: ROOM_ID, target: null, signal }),
+            onOpen: () => {
+                peerConnected = true;
+                setStatus("Connected", "ok");
+                enableChat();
+                if (role === "sender") P2P.toast.success("Connected — send your files!");
+            },
+            onClose: () => {
+                peerConnected = false;
+                setStatus("Disconnected", "err");
+            },
+            onState: (st) => {
+                if (st === "connected") {
+                    setStatus("Connected", "ok");
+                    if (retryBtn) retryBtn.classList.add("hidden");
+                    if (connHelp) connHelp.style.display = "none";
+                }
+                if (st === "failed") {
+                    setStatus("Connection failed", "err");
+                    if (restartAttempts < 2) {
+                        restartAttempts += 1;
+                        P2P.toast.show("Connection lost — retrying…");
+                        self.restartIce();
+                    } else {
+                        showRetry();
+                    }
+                }
+            },
+            onMessage: (data, ch) => {
+                const chat = P2P.parseChatMessage(data);
+                if (chat) {
+                    appendChat(chat.text, false, peerName);
+                } else {
+                    receiver.handle(data, ch);
+                }
+            },
+        });
+        return self;
+    }
+
     socket.on("connect", () => {
         setStatus("Authenticating…", "warn");
         socket.emit("authenticate", {
@@ -235,33 +364,23 @@
 
     socket.on("authenticated", (data) => {
         roomType = data.room.type;
-        self = new P2P.Peer(ROOM_ID, data.yourSid, data.iceConfig, {
-            onSignal: (type, signal) =>
-                socket.emit("signal", { roomId: ROOM_ID, target: null, type, signal }),
-            onOpen: () => {
-                setStatus("Connected", "ok");
-                enableChat();
-                if (role === "sender") P2P.toast.success("Connected — send your files!");
-            },
-            onClose: () => setStatus("Disconnected", "err"),
-            onState: (st) => {
-                if (st === "failed") setStatus("Connection failed", "err");
-            },
-            onMessage: (data, ch) => {
-                const chat = P2P.parseChatMessage(data);
-                if (chat) {
-                    appendChat(chat.text, false, peerName);
-                } else {
-                    receiver.handle(data, ch);
-                }
-            },
-        });
+        setStatus("Consulting peers…", "warn");
+        makePeer(data);
 
         roomNameEl.textContent = data.room.name;
         roomCodeEl.textContent = roomCode();
-        setStatus("Connected", "ok");
         setRoleHints();
+        renderPeers(data.room);
         socket.emit("join", { roomId: ROOM_ID });
+
+        // Creator always initiates the connection (kills glare: only one
+        // side ever creates offers). If a peer is already present (e.g. this
+        // socket just reconnected), offer immediately.
+        const others = (data.peers || []).filter((p) => p.sid !== data.yourSid);
+        if (isCreator && others.length > 0) {
+            self.sid = others[0].sid;
+            self.createOffer().catch((e) => console.error(e));
+        }
     });
 
     socket.on("auth_failed", (data) => {
@@ -280,15 +399,25 @@
         }
     });
 
+    socket.on("disconnect", () => {
+        setStatus("Reconnecting…", "warn");
+    });
+
     socket.on("peer_joined", (data) => {
         if (!self) return;
-        if (role === "sender") {
+        const name = data.peerName;
+        if (name) P2P.toast.show(`${name} joined the room.`);
+        if (isCreator) {
             self.sid = data.peer;
+            setStatus("Negotiating connection…", "warn");
             self.createOffer().catch((e) => console.error(e));
         }
     });
 
-    socket.on("peer_left", () => {
+    socket.on("peer_left", (data) => {
+        if (data && data.peer) {
+            P2P.toast.show("A device left the room.");
+        }
         renderPeers();
     });
 
@@ -296,6 +425,7 @@
         if (!self) return;
         if (data.signal && data.signal.sdp && data.signal.sdp.type === "offer") {
             self.sid = data.from;
+            setStatus("Negotiating connection…", "warn");
             self.createAnswer(data.signal).catch((e) => console.error(e));
         } else if (data.signal && data.signal.sdp && data.signal.sdp.type === "answer") {
             self.acceptAnswer(data.signal).catch((e) => console.error(e));

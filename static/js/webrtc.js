@@ -10,6 +10,8 @@
         this.pc = new RTCPeerConnection(iceConfig || { iceServers: [] });
         this.channel = null;
         this.channelReady = false;
+        this.pendingCandidates = [];
+        this.creatingOffer = false;
 
         const sendBuffer = [];
         let awaiting = false;
@@ -48,17 +50,26 @@
         };
 
         this.createOffer = async function () {
-            this.channel = this.pc.createDataChannel("file-transfer", {
-                ordered: true,
-            });
-            this.setupChannel(this.channel);
-            const offer = await this.pc.createOffer();
-            await this.pc.setLocalDescription(offer);
-            this.callbacks.onSignal("offer", { sdp: this.pc.localDescription });
+            if (this.creatingOffer || this.channelReady) return;
+            this.creatingOffer = true;
+            try {
+                if (!this.channel) {
+                    this.channel = this.pc.createDataChannel("file-transfer", {
+                        ordered: true,
+                    });
+                    this.setupChannel(this.channel);
+                }
+                const offer = await this.pc.createOffer();
+                await this.pc.setLocalDescription(offer);
+                this.callbacks.onSignal("offer", { sdp: this.pc.localDescription });
+            } finally {
+                this.creatingOffer = false;
+            }
         };
 
         this.createAnswer = async function (offer) {
             await this.pc.setRemoteDescription(offer);
+            this.flushCandidates();
             this.pc.ondatachannel = (e) => {
                 this.channel = e.channel;
                 this.setupChannel(this.channel);
@@ -70,10 +81,33 @@
 
         this.acceptAnswer = async function (answer) {
             await this.pc.setRemoteDescription(answer);
+            this.flushCandidates();
         };
 
         this.addIce = function (candidate) {
+            if (!this.pc.remoteDescription) {
+                this.pendingCandidates.push(candidate);
+                return;
+            }
             this.pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+        };
+
+        this.flushCandidates = function () {
+            const pend = this.pendingCandidates;
+            this.pendingCandidates = [];
+            for (const candidate of pend) {
+                this.pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+            }
+        };
+
+        this.restartIce = async function () {
+            try {
+                const offer = await this.pc.createOffer({ iceRestart: true });
+                await this.pc.setLocalDescription(offer);
+                this.callbacks.onSignal("offer", { sdp: this.pc.localDescription });
+            } catch (e) {
+                if (this.callbacks.onError) this.callbacks.onError(e);
+            }
         };
 
         this.setupChannel = function (ch) {
@@ -158,12 +192,17 @@
 
         this.cancel = function () {
             this.cancelled = true;
+            try {
+                this.peer.send(
+                    JSON.stringify({ type: "file-cancel", name: this.name })
+                );
+            } catch (e) {}
         };
     }
 
     function FileReceiver() {
-        this.files = {};
-        this.buffers = {};
+        this.files = {};       // name -> {name,size,received,chunks}
+        this.pendingFile = null;
 
         this.handle = function (data, channel) {
             if (typeof data === "string") {
@@ -174,14 +213,32 @@
                     return;
                 }
                 if (msg.type === "file-meta") {
-                    this.buffers[msg.name] = new Uint8Array(msg.size);
-                    this.files[msg.name] = { name: msg.name, size: msg.size, received: 0 };
-                    if (window.P2P.onReceiveMeta) window.P2P.onReceiveMeta(this.files[msg.name]);
+                    let name = msg.name;
+                    const base = name;
+                    let i = 2;
+                    while (this.files[name]) {
+                        name = `${base} (${i++})`;
+                    }
+                    const f = { name, size: msg.size, received: 0, chunks: [] };
+                    this.files[name] = f;
+                    this.pendingFile = f;
+                    if (window.P2P.onReceiveMeta) window.P2P.onReceiveMeta(f);
                 } else if (msg.type === "file-end") {
+                    const f = this.files[msg.name] || this.pendingFile;
+                    if (f) {
+                        const blob = new Blob(f.chunks, {
+                            type: "application/octet-stream",
+                        });
+                        if (window.P2P.onReceiveDone) window.P2P.onReceiveDone(f, blob);
+                        delete this.files[f.name];
+                        if (this.pendingFile === f) this.pendingFile = null;
+                    }
+                } else if (msg.type === "file-cancel") {
                     const f = this.files[msg.name];
                     if (f) {
-                        const blob = new Blob([this.buffers[msg.name]]);
-                        if (window.P2P.onReceiveDone) window.P2P.onReceiveDone(f, blob);
+                        delete this.files[f.name];
+                        if (window.P2P.onReceiveCancel) window.P2P.onReceiveCancel(f);
+                        if (this.pendingFile === f) this.pendingFile = null;
                     }
                 }
                 return;
@@ -192,20 +249,21 @@
                 const view = new DataView(bytes.buffer);
                 const offset = view.getUint32(0, false);
                 const chunk = bytes.slice(4);
-                const fileName = findNameForOffset(this, offset, chunk.byteLength);
-                if (!fileName) return;
-                this.buffers[fileName].set(chunk, offset);
-                const f = this.files[fileName];
-                f.received += chunk.byteLength;
-                if (window.P2P.onReceiveProgress) window.P2P.onReceiveProgress(f);
+                const entry = findChunkTarget(this, offset, chunk.byteLength);
+                if (!entry) return;
+                entry.f.received += chunk.byteLength;
+                entry.f.chunks.push(chunk);
+                if (window.P2P.onReceiveProgress) window.P2P.onReceiveProgress(entry.f);
             }
         };
     }
 
-    function findNameForOffset(receiver, offset, length) {
+    function findChunkTarget(receiver, offset, length) {
         for (const name in receiver.files) {
             const f = receiver.files[name];
-            if (offset < f.size && offset + length <= f.size) return name;
+            if (f.size > 0 && offset < f.size && offset + length <= f.size) {
+                return { f };
+            }
         }
         return null;
     }

@@ -83,13 +83,13 @@ cp .env.example .env   # then edit as needed
 | --- | --- | --- |
 | `SECRET_KEY` | `dev-secret-change-me` | Flask secret. **Set a real value in production.** |
 | `STUN_SERVER` | `stun:stun.l.google.com:19302` | STUN server for NAT traversal. |
-| `TURN_SERVER` | (empty) | Optional TURN relay URL. |
-| `TURN_USERNAME` / `TURN_PASSWORD` | (empty) | TURN credentials. |
+| `TURN_SERVER` | `turn:openrelay.metered.ca:80` | TURN relay URL for strict/carrier NAT. |
+| `TURN_USERNAME` / `TURN_PASSWORD` | `openrelayproject` | TURN credentials (free Open Relay Project). |
 | `ROOM_TIMEOUT_MINUTES` | `30` | Max room life while active. |
 | `ROOM_GRACE_PERIOD_SECONDS` | `300` | Orphaned-room grace period. |
 | `ROOM_CLEANUP_INTERVAL_SECONDS` | `60` | Cleanup loop interval. |
-| `MAX_PEERS_PER_ROOM` | `5` | Max peers per room. |
-| `MAX_FILE_SIZE` | `1073741824` (1 GiB) | Max individual file size (client-side hint). |
+| `MAX_PEERS_PER_ROOM` | `2` | Max peers per room (this build supports 1 host + 1 joiner). |
+| `MAX_FILE_SIZE` | `209715200` (200 MiB) | Max individual file size (server default, client enforces too). |
 | `MAX_FILES` | `50` | Max files per room. |
 | `CHUNK_SIZE` | `65536` | DataChannel chunk size in bytes. |
 | `PASSWORD_MAX_ATTEMPTS` | `5` | Rate-limit threshold. |
@@ -149,18 +149,29 @@ For best results use Chrome/Edge/Firefox/Safari on both sides.
 > Note: Render's free instances spin down after ~15 minutes of inactivity.
 > The first request after idle triggers a cold start (a few seconds of delay)
 > while the instance wakes up.
+>
+> **Free-tier caveat:** Render free instances also drop long-lived connections
+> after ~5 minutes. The WebSocket/socket reconnect logic in `room.js` handles
+> this automatically, and an active file transfer continues over the direct
+> WebRTC DataChannel even if signaling drops. Still, sessions longer than
+> ~5 minutes may briefly flicker "Reconnecting…" before re-authenticating.
 
 ## 10. STUN/TURN configuration
 
+The default config uses Google's public STUN server plus the **free Open Relay
+Project** TURN relay (`openrelay.metered.ca`). This combination works across
+most NATs, including mobile carrier-grade NAT where STUN alone fails.
+
 ```text
 STUN_SERVER=stun:stun.l.google.com:19302
-TURN_SERVER=turn:your-turn.example.com:3478
-TURN_USERNAME=user
-TURN_PASSWORD=pass
+TURN_SERVER=turn:openrelay.metered.ca:80
+TURN_USERNAME=openrelayproject
+TURN_PASSWORD=openrelayproject
 ```
 
-STUN is sufficient for most NAT types. Add TURN if users report "Connection
-failed" behind symmetric NATs or restrictive firewalls.
+- STUN is sufficient for most NAT types.
+- Add/replace TURN if users report "Connection failed" behind symmetric NATs or
+  restrictive firewalls, or if you prefer a self-hosted coturn for reliability.
 
 ## 11. Security considerations
 
@@ -182,8 +193,10 @@ failed" behind symmetric NATs or restrictive firewalls.
   the whole transfer.
 - In-memory rooms are lost on server restart (acceptable for the ephemeral
   Render filesystem).
-- One active data path per peer in this MVP; the backend is structured so
-  multiple peers can be wired in without a rewrite.
+- This build supports **exactly 2 peers per room** (1 host + 1 joiner). The
+  backend is structured so more peers can be wired in without a rewrite.
+- File size is capped at **200 MiB** by default to keep mobile browsers from
+  running out of memory during a transfer.
 - Browser must support WebRTC DataChannels.
 
 ## 13. Future improvements

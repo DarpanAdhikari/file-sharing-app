@@ -7,7 +7,10 @@
         <div id="conn-status" class="muted"><span class="status-dot"></span>Connecting…</div>
         <div class="section" style="margin-top:16px;">
             <p class="panel__title" style="font-size:.9rem;">Room Code</p>
-            <div class="room-code" id="room-code">…</div>
+            <div class="room-code-wrap">
+                <div class="room-code" id="room-code">…</div>
+                <button type="button" class="btn btn--ghost" id="copy-invite-btn">Copy invite link</button>
+            </div>
         </div>
         <div class="section" style="margin-top:16px;">
             <p class="panel__title" style="font-size:.9rem;">Scan to join</p>
@@ -17,6 +20,8 @@
         <div class="section" style="margin-top:16px;">
             <p class="panel__title" style="font-size:.9rem;">Connected Devices</p>
             <ul class="peer-list" id="peer-list"></ul>
+            <button type="button" class="btn btn--ghost hidden" id="retry-btn">Retry connection</button>
+            <p class="muted" id="conn-help" style="font-size:.8rem;display:none;">Direct connection blocked? Try again, or move both devices to the same network.</p>
         </div>
     </div>
 
@@ -72,6 +77,7 @@
 <script src="{{ url_for('static', filename='js/webrtc.js') }}"></script>
 <script>
     window.ROOM_ID = {{ room_id | tojson }};
+    window.MAX_FILE_SIZE = {{ max_file_size | tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/room.js') }}"></script>
 {% endblock %}

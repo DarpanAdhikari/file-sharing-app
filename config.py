@@ -23,18 +23,18 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 # --- WebRTC ---
 STUN_SERVER = os.getenv("STUN_SERVER", "stun:stun.l.google.com:19302")
-TURN_SERVER = os.getenv("TURN_SERVER", "")
-TURN_USERNAME = os.getenv("TURN_USERNAME", "")
-TURN_PASSWORD = os.getenv("TURN_PASSWORD", "")
+TURN_SERVER = os.getenv("TURN_SERVER", "turn:openrelay.metered.ca:80")
+TURN_USERNAME = os.getenv("TURN_USERNAME", "openrelayproject")
+TURN_PASSWORD = os.getenv("TURN_PASSWORD", "openrelayproject")
 
 # --- Room lifecycle ---
 ROOM_TIMEOUT_MINUTES = _int("ROOM_TIMEOUT_MINUTES", 30)
 ROOM_GRACE_PERIOD_SECONDS = _int("ROOM_GRACE_PERIOD_SECONDS", 300)
-MAX_PEERS_PER_ROOM = _int("MAX_PEERS_PER_ROOM", 5)
+MAX_PEERS_PER_ROOM = _int("MAX_PEERS_PER_ROOM", 2)
 ROOM_CLEANUP_INTERVAL_SECONDS = _int("ROOM_CLEANUP_INTERVAL_SECONDS", 60)
 
 # --- Transfer limits ---
-MAX_FILE_SIZE = _int("MAX_FILE_SIZE", 1024 * 1024 * 1024)  # 1 GiB default
+MAX_FILE_SIZE = _int("MAX_FILE_SIZE", 200 * 1024 * 1024)  # 200 MiB default
 MAX_FILES = _int("MAX_FILES", 50)
 
 # --- Auth ---

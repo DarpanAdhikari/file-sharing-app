@@ -11,7 +11,13 @@ services:
         generateValue: true
       - key: STUN_SERVER
         value: stun:stun.l.google.com:19302
+      - key: TURN_SERVER
+        value: turn:openrelay.metered.ca:80
+      - key: TURN_USERNAME
+        value: openrelayproject
+      - key: TURN_PASSWORD
+        value: openrelayproject
       - key: ROOM_TIMEOUT_MINUTES
         value: 30
       - key: MAX_PEERS_PER_ROOM
-        value: 5
+        value: 2
