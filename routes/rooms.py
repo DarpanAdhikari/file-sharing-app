@@ -23,6 +23,16 @@ def list_rooms():
     return jsonify({"rooms": rooms})
 
 
+@rooms_bp.get("/rooms/<room_id>")
+def get_room(room_id):
+    room = room_service.get(room_id)
+    if room is None:
+        return _error("Room does not exist.", 404)
+    if room.expired:
+        return _error("Room has expired.", 410)
+    return jsonify({"room": room.public_metadata()})
+
+
 @rooms_bp.post("/rooms")
 def create_room():
     data = request.get_json(silent=True) or {}

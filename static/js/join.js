@@ -1,7 +1,6 @@
 (function () {
     const info = document.getElementById("room-info");
     const form = document.getElementById("join-form");
-    const joinBtn = document.getElementById("join-btn");
     const errEl = document.getElementById("join-error");
     const roomIdInput = document.getElementById("room-id-input");
     const scanBtn = document.getElementById("scan-btn");
@@ -11,6 +10,8 @@
     const video = document.getElementById("scan-video");
 
     const INITIAL = window.INITIAL_ROOM_ID || "";
+    const INITIAL_ROOM = extractRoomId(INITIAL);
+    const ROOM_EXISTS = window.ROOM_EXISTS !== false;
 
     function extractRoomId(value) {
         const v = (value || "").trim();
@@ -22,15 +23,17 @@
     }
 
     function resolveRoomId() {
-        const roomId = extractRoomId(roomIdInput.value) || extractRoomId(INITIAL);
+        const roomId = extractRoomId(roomIdInput.value) || INITIAL_ROOM;
         roomIdInput.value = roomId;
         return roomId;
     }
 
     if (INITIAL) {
-        roomIdInput.value = extractRoomId(INITIAL);
-        resolveRoomId();
-        info.textContent = "Room: " + roomIdInput.value;
+        roomIdInput.value = INITIAL_ROOM;
+        info.textContent = "Room: " + INITIAL_ROOM;
+        if (!ROOM_EXISTS) {
+            showError("This room is no longer active. Ask the host to create a new room.");
+        }
     }
 
     document.getElementById("back-btn").addEventListener("click", () => {
@@ -103,29 +106,24 @@
     window.addEventListener("pagehide", stopScanner);
 
     // ---- submit ----
-    form.addEventListener("submit", async (e) => {
+    form.addEventListener("submit", (e) => {
         e.preventDefault();
         errEl.classList.add("hidden");
         const roomId = resolveRoomId();
         if (!roomId) { showError("Please enter a room code or scan a QR code."); return; }
-
-        joinBtn.disabled = true;
-        const data = Object.fromEntries(new FormData(form).entries());
-        try {
-            const res = await fetch("/api/rooms/" + encodeURIComponent(roomId) + "/authenticate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password: data.password, displayName: data.displayName }),
-            });
-            const body = await res.json();
-            if (!res.ok) throw new Error(body.error || "Failed to join.");
-            sessionStorage.setItem("p2p_displayName", data.displayName);
-            sessionStorage.setItem("p2p_roomPassword", data.password);
-            sessionStorage.removeItem("p2p_isCreator");
-            window.location.href = "/room/" + roomId;
-        } catch (err) {
-            showError(err.message);
-            joinBtn.disabled = false;
+        if (!ROOM_EXISTS && INITIAL_ROOM && roomId === INITIAL_ROOM) {
+            showError("This room is no longer active. Ask the host to create a new room.");
+            return;
         }
+
+        const data = Object.fromEntries(new FormData(form).entries());
+        if (!data.displayName || !data.displayName.trim()) {
+            showError("Please enter your display name.");
+            return;
+        }
+        sessionStorage.setItem("p2p_displayName", data.displayName.trim());
+        sessionStorage.setItem("p2p_roomPassword", data.password);
+        sessionStorage.removeItem("p2p_isCreator");
+        window.location.href = "/room/" + roomId;
     });
 })();

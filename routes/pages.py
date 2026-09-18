@@ -4,6 +4,8 @@ import io
 import qrcode
 from flask import Blueprint, render_template, url_for
 
+from services.room_service import room_service
+
 pages_bp = Blueprint("pages", __name__)
 
 
@@ -23,7 +25,17 @@ def index():
 
 @pages_bp.get("/join/<room_id>")
 def join(room_id):
-    return render_template("join.html", room_id=room_id)
+    room = room_service.get(room_id)
+    room = None if (room is None or room.expired) else room
+    room_meta = room.public_metadata() if room else None
+    return render_template(
+        "join.html",
+        room_id=room_id,
+        room_name=room_meta["name"] if room_meta else None,
+        room_creator=room_meta["creator"] if room_meta else None,
+        room_type=room_meta["type"] if room_meta else None,
+        room_exists=room_meta is not None,
+    )
 
 
 @pages_bp.get("/room/<room_id>")

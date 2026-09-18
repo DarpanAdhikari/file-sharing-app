@@ -130,6 +130,14 @@ class RoomService:
     def get(self, room_id):
         return self._rooms.get(room_id)
 
+    def find_room_for_sid(self, sid):
+        """Find the room containing the given peer sid (thread-safe)."""
+        with self._lock:
+            for rid, room in self._rooms.items():
+                if sid in room.peers:
+                    return rid, room
+        return None, None
+
     def get_active(self, room_id):
         room = self.get(room_id)
         if room is None:

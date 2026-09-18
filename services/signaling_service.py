@@ -111,7 +111,9 @@ def _handle_signal(data):
 def _handle_heartbeat(data):
     room_id = data.get("roomId")
     if room_id:
-        room_service.touch_peer(room_service.get(room_id), request.sid)
+        room = room_service.get(room_id)
+        if room:
+            room_service.touch_peer(room, request.sid)
 
 
 def _handle_room_join(data):
@@ -126,25 +128,12 @@ def _handle_room_join(data):
 
 
 def _handle_disconnect():
-    room_id = None
-    for rid, room in room_service._rooms.items():
-        if request.sid in room.peers:
-            room_id = rid
-            break
-    if room_id is None:
-        return
-    room = room_service.get(room_id)
+    room_id, room = room_service.find_room_for_sid(request.sid)
     if room is None:
         return
     room_service.remove_peer(room, request.sid)
     _emit_to_room(room_id, "peer_left", {"peer": request.sid}, skip_sid=request.sid)
     _emit_to_room(room_id, "room_updated", {"room": room.public_metadata()})
-
-    creator = room.creator_sid()
-    if creator is None:
-        # Creator gone; start grace countdown by expiring immediately.
-        # Cleanup task also handles this if no peers remain.
-        pass
 
 
 def _cleanup_loop():

@@ -86,7 +86,8 @@ cp .env.example .env   # then edit as needed
 | `TURN_SERVER` | (empty) | Optional TURN relay URL. |
 | `TURN_USERNAME` / `TURN_PASSWORD` | (empty) | TURN credentials. |
 | `ROOM_TIMEOUT_MINUTES` | `30` | Max room life while active. |
-| `ROOM_GRACE_PERIOD_SECONDS` | `30` | Orphaned-room grace period. |
+| `ROOM_GRACE_PERIOD_SECONDS` | `300` | Orphaned-room grace period. |
+| `ROOM_CLEANUP_INTERVAL_SECONDS` | `60` | Cleanup loop interval. |
 | `MAX_PEERS_PER_ROOM` | `5` | Max peers per room. |
 | `MAX_FILE_SIZE` | `1073741824` (1 GiB) | Max individual file size (client-side hint). |
 | `MAX_FILES` | `50` | Max files per room. |

@@ -61,6 +61,38 @@ def test_authenticate_unknown_room(client):
     assert res.status_code == 404
 
 
+def test_get_single_room_endpoint(client):
+    room = client.post(
+        "/api/rooms",
+        json={"name": "A", "password": "pw", "displayName": "N", "type": "send"},
+    ).get_json()["room"]
+    res = client.get(f"/api/rooms/{room['id']}")
+    assert res.status_code == 200
+    body = res.get_json()["room"]
+    assert body["name"] == "A"
+    assert "password" not in body
+
+
+def test_get_single_room_unknown(client):
+    assert client.get("/api/rooms/nope").status_code == 404
+
+
+def test_join_page_shows_room_name(client):
+    room = client.post(
+        "/api/rooms",
+        json={"name": "Cool Room", "password": "pw", "displayName": "Alice", "type": "both"},
+    ).get_json()["room"]
+    res = client.get(f"/join/{room['id']}")
+    assert res.status_code == 200
+    assert b"Cool Room" in res.data
+
+
+def test_join_page_inactive_room(client):
+    res = client.get("/join/nonexistent")
+    assert res.status_code == 200
+    assert b"not active" in res.data
+
+
 def test_create_room_validation(client):
     res = client.post("/api/rooms", json={"name": "", "password": "", "displayName": ""})
     assert res.status_code == 400

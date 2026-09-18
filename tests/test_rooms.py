@@ -110,6 +110,18 @@ def test_remove_peer_reduces_count():
     assert len(room.peers) == 1
 
 
+def test_find_room_for_sid():
+    svc = make_service()
+    room = svc.create_room("A", "pw", "N", "send")
+    svc.add_peer(room, "s1", "p1")
+    rid, found = svc.find_room_for_sid("s1")
+    assert rid == room.id
+    assert found is room
+    rid, found = svc.find_room_for_sid("ghost")
+    assert rid is None
+    assert found is None
+
+
 def test_cleanup_expires_inactive_room(monkeypatch):
     import config
     monkeypatch.setattr(config, "ROOM_TIMEOUT_MINUTES", 0)

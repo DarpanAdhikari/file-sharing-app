@@ -274,6 +274,10 @@
     socket.on("error", (data) => {
         setStatus(data.error || "Error", "err");
         P2P.toast.error(data.error || "Something went wrong.");
+        const msg = data.error || "";
+        if (/does not exist|has expired|is full/i.test(msg)) {
+            setTimeout(() => (window.location.href = "/join/" + ROOM_ID), 1500);
+        }
     });
 
     socket.on("peer_joined", (data) => {
