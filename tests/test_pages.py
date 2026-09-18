@@ -51,3 +51,25 @@ def test_room_page_redirects_when_expired(client):
     resp = client.get(f"/room/{room['id']}")
     assert resp.status_code == 302
     assert resp.headers["Location"].endswith(f"/join/{room['id']}")
+
+
+def test_uppercase_code_resolves_lowercase_room(client):
+    room = _create(client)
+    upper = room["id"].upper()
+    resp = client.get(f"/join/{upper}")
+    assert resp.status_code == 200
+    assert "window.ROOM_EXISTS = true" in resp.get_data(as_text=True)
+    resp = client.get(f"/room/{upper}")
+    assert resp.status_code == 200
+    assert "copy-invite-btn" in resp.get_data(as_text=True)
+
+
+def test_short_code_resolves_room(client):
+    room = _create(client)
+    short = room["id"][:6].upper()
+    resp = client.get(f"/join/{short}")
+    assert resp.status_code == 200
+    assert "window.ROOM_EXISTS = true" in resp.get_data(as_text=True)
+    resp = client.get(f"/room/{short}")
+    assert resp.status_code == 200
+    assert "copy-invite-btn" in resp.get_data(as_text=True)

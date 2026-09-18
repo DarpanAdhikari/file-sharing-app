@@ -26,7 +26,7 @@ def index():
 
 @pages_bp.get("/join/<room_id>")
 def join(room_id):
-    room = room_service.get(room_id)
+    room = room_service.resolve(room_id)
     room = None if (room is None or room.expired) else room
     room_meta = room.public_metadata() if room else None
     return render_template(
@@ -41,7 +41,7 @@ def join(room_id):
 
 @pages_bp.get("/room/<room_id>")
 def room(room_id):
-    room = room_service.get(room_id)
+    room = room_service.resolve(room_id)
     if room is None or room.expired:
         return redirect(url_for("pages.join", room_id=room_id))
     return render_template(

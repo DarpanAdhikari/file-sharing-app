@@ -25,7 +25,7 @@ def list_rooms():
 
 @rooms_bp.get("/rooms/<room_id>")
 def get_room(room_id):
-    room = room_service.get(room_id)
+    room = room_service.resolve(room_id)
     if room is None:
         return _error("Room does not exist.", 404)
     if room.expired:

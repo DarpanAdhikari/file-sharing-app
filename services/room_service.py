@@ -128,7 +128,21 @@ class RoomService:
                 return candidate
 
     def get(self, room_id):
-        return self._rooms.get(room_id)
+        # Room ids are generated as lowercase hex; normalize lookups so a
+        # code/link shared in uppercase still resolves.
+        return self._rooms.get((room_id or "").strip().lower())
+
+    def resolve(self, room_id):
+        """Resolve a room by full id or by its 6-character short code."""
+        key = (room_id or "").strip().lower()
+        room = self._rooms.get(key)
+        if room is not None:
+            return room
+        if len(key) == 6:
+            for rid, candidate in self._rooms.items():
+                if rid.startswith(key):
+                    return candidate
+        return None
 
     def find_room_for_sid(self, sid):
         """Find the room containing the given peer sid (thread-safe)."""
@@ -139,7 +153,7 @@ class RoomService:
         return None, None
 
     def get_active(self, room_id):
-        room = self.get(room_id)
+        room = self.resolve(room_id)
         if room is None:
             raise RoomNotFoundError("Room does not exist.")
         if room.expired:

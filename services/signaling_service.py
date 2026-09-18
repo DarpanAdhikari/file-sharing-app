@@ -102,7 +102,7 @@ def _handle_authenticate(data):
 
 def _handle_signal(data):
     room_id = data.get("roomId")
-    room = room_service.get(room_id)
+    room = room_service.resolve(room_id)
     if room is None or request.sid not in room.peers:
         return
 
@@ -129,7 +129,7 @@ def _handle_signal(data):
 def _handle_heartbeat(data):
     room_id = data.get("roomId")
     if room_id:
-        room = room_service.get(room_id)
+        room = room_service.resolve(room_id)
         if room:
             room_service.touch_peer(room, request.sid)
 
@@ -138,7 +138,7 @@ def _handle_room_join(data):
     # Intentionally thin: the socket "join room" concept is managed by the
     # signaling layer. Joining a room before auth is not allowed.
     room_id = data.get("roomId")
-    room = room_service.get(room_id)
+    room = room_service.resolve(room_id)
     if room is None or request.sid not in room.peers:
         emit("error", {"error": "Not authorized."})
         return
